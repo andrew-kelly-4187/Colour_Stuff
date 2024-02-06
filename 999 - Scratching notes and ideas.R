@@ -87,7 +87,7 @@ fn_ContrastRatio("#bab598","#deface")
 
 # What if we could populate points within the RGB space, such that the 
 # edge weight joining the points is the contrast ratio and never is 
-# lower than 4.6 (the limit + 0.1
+# lower than 4.6 (the limit + 0.1)
 
 fn_HexToLuminance("#bab598")
 fn_HexToLuminance("#deface")
@@ -169,25 +169,95 @@ fn_ContrastRatio2("#133337","#0E1979")
 
 # So going in reverse from #deface
 L_ref = fn_HexToLuminance("#deface")
-# possible L values that are a contrast ratio of 4.6 away are...
-L_new_1 = 4.6*(L_ref + 0.05) - 0.05
-L_new_2 = (1/4.6)*(L_ref + 0.05) - 0.05
+# possible L values that are a contrast ratio of 3.1 away are...
+L_new_1 = 3.1*(L_ref + 0.05) - 0.05
+L_new_2 = (1/3.1)*(L_ref + 0.05) - 0.05
 
 # In terms of plotting solutions, let's try visualising how this looks
 RGB_ref <- col2rgb(col = "#deface", alpha = FALSE)/255
 
-x = seq(0,1,0.001)
-y = seq(0,1,0.001)
-z = seq(0,1,0.001)
+x = seq(0,1,0.01)
+y = seq(0,1,0.01)
+z = seq(0,1,0.01)
 
-grid <- data.frame(
-  x = seq(0,1,0.001),
-  y = seq(0,1,0.001),
-  z = seq(0,1,0.001)) %>% 
-  dplyr::mutate(r = ((x+0.055)/1.055)^2.4,
-                g = ((y+0.055)/1.055)^2.4,
-                b = ((z+0.055)/1.055)^2.4) %>% 
+grid <- expand.grid(x, y, z) %>% 
+  dplyr::mutate(r = ((Var1+0.055)/1.055)^2.4,
+                g = ((Var2+0.055)/1.055)^2.4,
+                b = ((Var3+0.055)/1.055)^2.4) %>% 
   dplyr::mutate(L = 0.2126*r+0.7152*g+0.0722*b)
 
 dplyr::filter(grid, x == 0.871, y == 0.980,z == 0.808)
-# Need to sort out how to form a grid without murdering the server...
+
+# First, every colour must have a good contrast with white (#FFFFFF), L = 1
+grid2 <- grid %>% 
+  dplyr::mutate(White_contrast = (1 + 0.05)/(L + 0.05) > 3) %>%
+  dplyr::filter(White_contrast == TRUE)
+
+# Now to pick a starting colour: 
+
+max(grid2$L)
+
+hexcol1 <- '#08E300' # This actually fails the white test ...
+L_col1 <- fn_HexToLuminance(hexcol1)
+
+grid3 <- grid2 %>% 
+  dplyr::mutate(col1_contrast = dplyr::case_when(
+    L_col1 >= L ~ ((L_col1 + 0.05)/(L + 0.05))>3,
+    L_col1 < L ~ ((L + 0.05)/(L_col1 + 0.05))>3
+  )) %>% 
+  dplyr::filter(col1_contrast == TRUE)
+
+# Colour 2: Let's get some blue this time. 
+hexcol2<- '#0096F6'
+L_col2 <- fn_HexToLuminance(hexcol2)
+
+grid4 <- grid3 %>%
+  dplyr::filter(White_contrast == TRUE) %>% 
+  dplyr::mutate(col2_contrast = dplyr::case_when(
+    L_col2 >= L ~ ((L_col2 + 0.05)/(L + 0.05))>3,
+    L_col2 < L ~ ((L + 0.05)/(L_col2 + 0.05))>3
+  )) %>% 
+  dplyr::filter(col2_contrast == TRUE)
+
+ggplot2::ggplot(data = grid4) + ggplot2::geom_point(ggplot2::aes(x = r, y = g))
+ggplot2::ggplot(data = grid4) + ggplot2::geom_point(ggplot2::aes(x = g, y = b))
+ggplot2::ggplot(data = grid4) + ggplot2::geom_point(ggplot2::aes(x = r, y = b))
+
+# Colour 3: High values of B are available. Let's choose there 
+hexcol3<- '#7EBAFF'
+L_col3 <- fn_HexToLuminance(hexcol3)
+
+grid5 <- grid4 %>%
+  dplyr::filter(White_contrast == TRUE) %>% 
+  dplyr::mutate(col3_contrast = dplyr::case_when(
+    L_col3 >= L ~ ((L_col3 + 0.05)/(L + 0.05))>3,
+    L_col3 < L ~ ((L + 0.05)/(L_col3 + 0.05))>3
+  )) %>% 
+  dplyr::filter(col3_contrast == TRUE)
+
+ggplot2::ggplot(data = grid5) + ggplot2::geom_point(ggplot2::aes(x = r, y = g))
+ggplot2::ggplot(data = grid5) + ggplot2::geom_point(ggplot2::aes(x = g, y = b))
+ggplot2::ggplot(data = grid5) + ggplot2::geom_point(ggplot2::aes(x = r, y = b))
+
+m = max(grid5$L)
+dplyr::filter(grid5, L > 0.0615543)
+
+# Colour 4: Next one with the maximum luminance
+hexcol4<- '#000000'
+L_col4 <- fn_HexToLuminance(hexcol4)
+
+grid6 <- grid5 %>%
+  dplyr::filter(White_contrast == TRUE) %>% 
+  dplyr::mutate(col4_contrast = dplyr::case_when(
+    L_col4 >= L ~ ((L_col4 + 0.05)/(L + 0.05))>3,
+    L_col4 < L ~ ((L + 0.05)/(L_col4 + 0.05))>3
+  )) %>% 
+  dplyr::filter(col4_contrast == TRUE)
+
+ggplot2::ggplot(data = grid6) + ggplot2::geom_point(ggplot2::aes(x = r, y = g))
+ggplot2::ggplot(data = grid6) + ggplot2::geom_point(ggplot2::aes(x = g, y = b))
+ggplot2::ggplot(data = grid6) + ggplot2::geom_point(ggplot2::aes(x = r, y = b))
+
+0.1/3
+
+fn_HexToLuminance('#046595')
